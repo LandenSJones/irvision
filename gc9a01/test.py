@@ -1,24 +1,27 @@
-import RPi.GPIO as GPIO
-import time
+from luma.core.interface.serial import i2c
+from luma.lcd.device import gc9a01
+from luma.core.render import canvas
+from PIL import ImageFont, ImageDraw, Image
 
-DC_PIN = 24  
-RST_PIN = 25  
+# Initialize the I2C interface
+serial = i2c(port=1, address=0x3C)  # Adjust the address if necessary
 
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(DC_PIN, GPIO.OUT)
-GPIO.setup(RST_PIN, GPIO.OUT)
+# Initialize the GC9A01 display
+device = gc9a01(serial)
 
-# Set pins HIGH and read back
-GPIO.output(DC_PIN, GPIO.HIGH)
-GPIO.output(RST_PIN, GPIO.HIGH)
+# Load a font (you can use a different font if you prefer)
+font = ImageFont.load_default()
 
-time.sleep(0.5)  # Small delay
+# Create a drawing object
+with canvas(device) as draw:
+    # Draw some text
+    draw.text((10, 10), "Hello, World!", font=font, fill="white")
+    
+    # Draw a rectangle
+    draw.rectangle((10, 30, 100, 50), outline="white", fill="black")
+    
+    # Draw a line
+    draw.line((10, 60, 100, 60), fill="white")
 
-# Read pin values
-dc_state = GPIO.input(DC_PIN)
-rst_state = GPIO.input(RST_PIN)
-
-print(f"DC Pin (GPIO {DC_PIN}) State: {'HIGH' if dc_state else 'LOW'}")
-print(f"RST Pin (GPIO {RST_PIN}) State: {'HIGH' if rst_state else 'LOW'}")
-
-GPIO.cleanup()
+# Keep the script running to display the content
+input("Press Enter to exit...")
