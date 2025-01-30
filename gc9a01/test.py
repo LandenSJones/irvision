@@ -1,22 +1,24 @@
-import ST7789 as ST7789
-from PIL import Image
+import RPi.GPIO as GPIO
+import time
 
-# Initialize display
-disp = ST7789.ST7789(
-    port=0,
-    cs=0,  # Chip Select (CS0, GPIO8)
-    dc=24, # Data/Command (GPIO24)
-    rst=25, # Reset (GPIO25)
-    width=240,
-    height=240,
-    rotation=180,  # Adjust if needed
-    spi_speed_hz=40000000
-)
+DC_PIN = 24  
+RST_PIN = 25  
 
-disp.begin()
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(DC_PIN, GPIO.OUT)
+GPIO.setup(RST_PIN, GPIO.OUT)
 
-# Create a solid red image
-image = Image.new("RGB", (240, 240), (255, 0, 0))  # Red screen
-disp.display(image)
+# Set pins HIGH and read back
+GPIO.output(DC_PIN, GPIO.HIGH)
+GPIO.output(RST_PIN, GPIO.HIGH)
 
-print("If this works, your screen should turn red!")
+time.sleep(0.5)  # Small delay
+
+# Read pin values
+dc_state = GPIO.input(DC_PIN)
+rst_state = GPIO.input(RST_PIN)
+
+print(f"DC Pin (GPIO {DC_PIN}) State: {'HIGH' if dc_state else 'LOW'}")
+print(f"RST Pin (GPIO {RST_PIN}) State: {'HIGH' if rst_state else 'LOW'}")
+
+GPIO.cleanup()
