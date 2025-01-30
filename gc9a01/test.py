@@ -1,12 +1,12 @@
-from luma.core.interface.serial import i2c
-from luma.lcd.device import gc9a01
+from luma.core.interface.serial import spi
+from luma.oled.device import gc9a01
 from luma.core.render import canvas
 from PIL import ImageFont, ImageDraw, Image
 
-# Initialize the I2C interface
-serial = i2c(port=1, address=0x3C)  # Adjust the address if necessary
+# Initialize SPI interface
+serial = spi(port=0, device=0, gpio_DC=24, gpio_RST=25)
 
-# Initialize the GC9A01 display
+# Initialize GC9A01 display
 device = gc9a01(serial)
 
 # Load a font (you can use a different font if you prefer)
