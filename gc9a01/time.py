@@ -1,12 +1,17 @@
 import time
-import digitalio
-import board
+import RPi.GPIO as GPIO
 
-rst = digitalio.DigitalInOut(board.D25)
-rst.direction = digitalio.Direction.OUTPUT
+RST_PIN = 25  # GPIO pin for Reset (Pin 22)
+
+# Setup GPIO
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(RST_PIN, GPIO.OUT)
 
 print("Resetting screen...")
-rst.value = False
+GPIO.output(RST_PIN, GPIO.LOW)
 time.sleep(1)
-rst.value = True
+GPIO.output(RST_PIN, GPIO.HIGH)
 print("Reset complete.")
+
+# Cleanup GPIO
+GPIO.cleanup()
