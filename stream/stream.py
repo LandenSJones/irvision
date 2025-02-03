@@ -39,4 +39,4 @@ while True:
     disp.display(image)
 
     # Optional: Limit frame rate
-    time.sleep(0.1)  # Adjust for desired refresh rate
+    time.sleep(0.05)  # Adjust for desired refresh rate
