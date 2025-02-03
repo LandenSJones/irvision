@@ -21,6 +21,6 @@ disp = st7789.ST7789(
 disp.begin()
 
 # OV5647 image production while loop
-image = Image.open(image_file)
-image = image.resize((disp.width, disp.height))
-disp.display(image)
+# image = Image.open(image_file)
+# image = image.resize((disp.width, disp.height))
+# disp.display(image)
