@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-import time
-
 from PIL import Image, ImageDraw
 
 from st7789 import ST7789
