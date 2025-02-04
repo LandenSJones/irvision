@@ -18,9 +18,9 @@ LED_B = 22
 
 # General
 SPI_PORT = 0
-SPI_CS = 1
-SPI_DC = 9
-BACKLIGHT = 13
+SPI_CS = 0
+SPI_DC = 25
+BACKLIGHT = 17
 
 # Screen dimensions
 WIDTH = 320
@@ -45,6 +45,4 @@ display = ST7789(
     spi_speed_hz=60 * 1000 * 1000,
 )
 
-while True:
-    display.display(buffer)
-    time.sleep(1.0 / 60)
+display.display(buffer)
