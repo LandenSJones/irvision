@@ -1,0 +1,29 @@
+~ $ pip install st7789 --break-system-packages
+Defaulting to user installation because normal site-packages is not writeable
+Looking in indexes: https://pypi.org/simple, https://www.piwheels.org/simple
+Collecting st7789
+  Downloading https://www.piwheels.org/simple/st7789/st7789-1.0.1-py3-none-any.whl (10 kB)
+Collecting gpiod
+  Downloading gpiod-2.2.3-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (100 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100.4/100.4 kB 849.8 kB/s eta 0:00:00
+Collecting gpiodevice>=0.0.4
+  Downloading https://www.piwheels.org/simple/gpiodevice/gpiodevice-0.0.5-py3-none-any.whl (9.2 kB)
+Collecting numpy>=1.26.4
+  Downloading numpy-2.2.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (14.3 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.3/14.3 MB 8.1 MB/s eta 0:00:00
+Collecting spidev>=3.6
+  Downloading spidev-3.6.tar.gz (11 kB)
+  Installing build dependencies ... done
+  Getting requirements to build wheel ... done
+  Preparing metadata (pyproject.toml) ... done
+Building wheels for collected packages: spidev
+  Building wheel for spidev (pyproject.toml) ... done
+  Created wheel for spidev: filename=spidev-3.6-cp311-cp311-linux_aarch64.whl size=42664 sha256=91ca278b0fc5d9a8c0a9e2d5611fe8752f706f1e95cd9906604a7a721693c8aa
+  Stored in directory: /home/jonesla/.cache/pip/wheels/44/f9/7b/01bb1f281eedaaa562943e27c78dee683ee6e7f3bf2f437101
+Successfully built spidev
+Installing collected packages: spidev, numpy, gpiod, gpiodevice, st7789
+  WARNING: The scripts f2py and numpy-config are installed in '/home/jonesla/.local/bin' which is not on PATH.
+  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+scipy 1.10.1 requires numpy<1.27.0,>=1.19.5, but you have numpy 2.2.2 which is incompatible.
+Successfully installed gpiod-2.2.3 gpiodevice-0.0.5 numpy-2.2.2 spidev-3.6 st7789-1.0.1
