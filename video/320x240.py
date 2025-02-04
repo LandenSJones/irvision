@@ -1,20 +1,6 @@
 #!/usr/bin/env python3
-import time
-
 from PIL import Image, ImageDraw
-
 from st7789 import ST7789
-
-# Buttons
-BUTTON_A = 5
-BUTTON_B = 6
-BUTTON_X = 16
-BUTTON_Y = 24
-
-# Onboard RGB LED
-LED_R = 17
-LED_G = 27
-LED_B = 22
 
 # General
 SPI_PORT = 0
@@ -27,6 +13,7 @@ WIDTH = 320
 HEIGHT = 240
 
 buffer = Image.new("RGB", (WIDTH, HEIGHT))
+buffer.show()
 draw = ImageDraw.Draw(buffer)
 
 draw.rectangle((0, 0, 50, 50), (255, 0, 0))
