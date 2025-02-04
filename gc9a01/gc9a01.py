@@ -114,7 +114,7 @@ class GC9A01:
         self._write_c(SLPOUT)  # Sleep Out
         time.sleep(0.1)
         self._write_c(MADCTL)  # Memory Data Access Control
-        self._write_d(0x00)       # Set rotation
+        self._write_d(0x80)       # Set rotation
         self._write_c(COLMOD)  # Pixel Format
         self._write_d(0x05)       # 16-bit color (RGB565)
         self._write_c(INVON)  # Display Inversion ON
