@@ -10,7 +10,7 @@ display = ST7789(
     width=320,
     height=240,
     rotation=180,
-    spi_speed_hz=60 * 1000 * 1000,
+    spi_speed_hz=10 * 1000 * 1000,
 )
 
 
