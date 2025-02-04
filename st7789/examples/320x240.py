@@ -32,6 +32,4 @@ display = ST7789(
     spi_speed_hz=60 * 1000 * 1000,
 )
 
-while True:
-    display.display(buffer)
-    time.sleep(1.0 / 60)
+display.display(buffer)
