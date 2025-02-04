@@ -4,7 +4,7 @@ from time import sleep
 
 display = ST7789(
     port=0,
-    cs=0,
+    cs=1,
     dc=25,
     backlight=17,
     width=320,
