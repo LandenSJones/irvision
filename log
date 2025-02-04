@@ -1,5 +1,0 @@
-landensjones@raspberrypi:~/repos/irvision/st7789/examples $ ps aux | grep spi
-root       217  0.0  0.0      0     0 ?        S    20:31   0:00 [spi0]
-landens+  6400  0.0  0.0   7444   532 pts/0    S+   20:37   0:00 grep --color=auto spi
-landensjones@raspberrypi:~/repos/irvision/st7789/examples $ ps aux | grep st7789
-landens+  6666  0.0  0.0   7444   524 pts/0    S+   20:37   0:00 grep --color=auto st7789
