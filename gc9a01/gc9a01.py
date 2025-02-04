@@ -1,183 +1,163 @@
-from picamera2 import Picamera2
-from PIL import Image
-import time
-import numbers
 import spidev
-import RPi.GPIO as GPIO  # Replace gpiod with RPi.GPIO
+import RPi.GPIO as GPIO
+import time
 
-# GPIO Pin Configuration
-GPIO.setmode(GPIO.BCM)  # Use Broadcom pin numbering
-GPIO.setwarnings(False)
+# PINS
+'''
+RST 16
+CS  24
+DC  22
+SDA 19
+SCL 23
+GND 6
+VCC 1
+'''
 
-# ST7789 SPI Commands
-ST7789_SWRESET = 0x01
-ST7789_MADCTL = 0x36
-ST7789_FRMCTR2 = 0xB2
-ST7789_COLMOD = 0x3A
-ST7789_GCTRL = 0xB7
-ST7789_VCOMS = 0xBB
-ST7789_LCMCTRL = 0xC0
-ST7789_VDVVRHEN = 0xC2
-ST7789_VRHS = 0xC3
-ST7789_VDVS = 0xC4
-ST7789_INVON = 0x21
-ST7789_INVOFF = 0x20
-ST7789_SLPOUT = 0x11
-ST7789_DISPON = 0x29
-ST7789_CASET = 0x2A
-ST7789_RASET = 0x2B
-ST7789_RAMWR = 0x2C
+# Colors
+BLUE    =   0x001F
+RED     =   0xF800
+GREEN   =   0x07E0
+CYAN    =   0x07FF
+MAGENTA =   0xF81F
+YELLOW  =   0xFFE0
+WHITE   =   0xFFFF
+colors = [BLUE, RED, GREEN, CYAN, MAGENTA, YELLOW, WHITE]
 
+# Write Commands
+SWRESET =   0x01    #	Software Reset
+SLPOUT  =   0x11    #	Sleep Out (Wake up the display)
+INVON   =   0x21    #	Invert Display Colors
+DISPOFF =   0x28    #	Display OFF
+DISPON  =   0x29    #	Display ON
+CASET   =   0x2A    #	Set Column Address
+RASET   =   0x2B    #	Set Row Address
+RAMWR   =   0x2C    #	Write Data to GRAM (Graphical RAM)
+MADCTL  =   0x36    #	Memory Access Control (sets rotation)
+COLMOD  =   0x3A    #	Pixel Format Set (color depth)
 
-class ST7789:
-    def __init__(self, port, cs, dc, backlight=None, rst=None, width=240, height=240, rotation=90, invert=True, spi_speed_hz=4000000):
-        self._spi = spidev.SpiDev(port, cs)
-        self._spi.mode = 0
-        self._spi.lsbfirst = False
-        self._spi.max_speed_hz = spi_speed_hz
+# Read Commands
+RDID    =   0x04    #   Reads the LCD driver ID             |   3 bytes
+RDDS    =   0x09    #   Checks if the display is ON/OFF     |	4 bytes
+GTSL    =   0x45    #   Reads the current scanline position |   2 bytes
 
-        self._dc = dc
-        self._rst = rst
-        self._bl = backlight
-        self._width = width
-        self._height = height
-        self._rotation = rotation
-        self._invert = invert
+# Pin configuration
+SPI_PORT = 0    # SPI BUS 0 : SPI0
+# The SPI_DEVICE = 0 setting tells the Raspberry Pi which chip select (CE) pin to use.
+# 0 corresponds to CE0 (GPIO 8, Pin 24).
+SPI_DEVICE = 0
 
-        # Setup GPIO Pins
-        GPIO.setup(self._dc, GPIO.OUT)
-        if self._rst is not None:
-            GPIO.setup(self._rst, GPIO.OUT)
-        if self._bl is not None:
-            GPIO.setup(self._bl, GPIO.OUT)
-            GPIO.output(self._bl, GPIO.HIGH)  # Turn backlight on
+DC_PIN = 25     # GPIO 25 (Pin 22) is assigned to the DCX (Data/Command) pin of the display.
 
-        self.reset()
-        self._init()
+RST_PIN = 23    # Reset | GPIO 23 (Pin 16) is used to reset the display.
 
-    def reset(self):
-        """Reset the display if reset pin is connected."""
-        if self._rst is not None:
-            GPIO.output(self._rst, GPIO.HIGH)
-            time.sleep(0.5)
-            GPIO.output(self._rst, GPIO.LOW)
-            time.sleep(0.5)
-            GPIO.output(self._rst, GPIO.HIGH)
-            time.sleep(0.5)
+def color565(red, green=0, blue=0):
+    """
+    Convert red, green, and blue values (0-255) into a 16-bit 565 encoded color.
+    """
+    try:
+        red, green, blue = red  # Handles tuple input
+    except TypeError:
+        pass
+    return (red & 0xF8) << 8 | (green & 0xFC) << 3 | (blue >> 3)
 
-    def send(self, data, is_data=True):
-        """Send a command or data to the display."""
-        GPIO.output(self._dc, GPIO.HIGH if is_data else GPIO.LOW)
-        if isinstance(data, numbers.Number):
-            data = [data & 0xFF]
-        self._spi.xfer(data)
+class GC9A01:
+    def __init__(self, spi_port=SPI_PORT, spi_device=SPI_DEVICE, dc_pin=DC_PIN, rst_pin=RST_PIN, width=240, height=240):
+        self.spi_port = spi_port
+        self.spi_device = spi_device
+        self.dc_pin = dc_pin
+        self.rst_pin = rst_pin
+        self.width = width
+        self.height = height
 
-    def command(self, data):
-        """Send a command byte to the display."""
-        self.send(data, is_data=False)
+        self._gpio_init()
+        self._spi_init()
 
-    def data(self, data):
-        """Send data bytes to the display."""
-        self.send(data, is_data=True)
+    def _gpio_init(self):
+        """Initialize GPIO for the display."""
+        GPIO.setwarnings(False)
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(self.dc_pin, GPIO.OUT)
+        GPIO.setup(self.rst_pin, GPIO.OUT)
 
-    def _init(self):
-        """Initialize the display."""
-        self.command(ST7789_SWRESET)
-        time.sleep(0.150)
+    def _spi_init(self):
+        """Initialize SPI interface."""
+        try:
+            self.spi = spidev.SpiDev()
+            self.spi.open(self.spi_port, self.spi_device)
+            self.spi.max_speed_hz = 10_000_000  # 40 MHz
+            self.spi.mode = 0
+        except Exception as e:
+            print(f"SPI initialization failed: {e}")
+            self.close()
 
-        self.command(ST7789_MADCTL)
-        self.data(0x70)
+    def _write_c(self, cmd):
+        GPIO.output(self.dc_pin, GPIO.LOW)  # Command mode
+        self.spi.writebytes([cmd])
 
-        self.command(ST7789_FRMCTR2)
-        self.data([0x0C, 0x0C, 0x00, 0x33, 0x33])
+    def _write_d(self, data):
+        GPIO.output(self.dc_pin, GPIO.HIGH)  # Data mode
+        if isinstance(data, int):
+            data = [data]  # Convert to single-element list
+        chunk_size = 100  # Maximum SPI transfer size
+        for i in range(0, len(data), chunk_size):
+            self.spi.writebytes(data[i:i+chunk_size])
 
-        self.command(ST7789_COLMOD)
-        self.data(0x05)
+    def reset_display(self):
+        GPIO.output(self.rst_pin, GPIO.LOW)  # Holds the display in reset mode (inactive state).
+        time.sleep(0.1)
+        GPIO.output(self.rst_pin, GPIO.HIGH) # Releases reset, allowing the display to initialize.
+        time.sleep(0.1)
 
-        self.command(ST7789_GCTRL)
-        self.data(0x14)
+    def init_display(self):
+        # GC9A01A Initialization Sequence
+        self.reset_display()
+        self._write_c(SLPOUT)  # Sleep Out
+        time.sleep(0.1)
+        self._write_c(MADCTL)  # Memory Data Access Control
+        self._write_d(0x80)       # Set rotation
+        self._write_c(COLMOD)  # Pixel Format
+        self._write_d(0x05)       # 16-bit color (RGB565)
+        self._write_c(INVON)  # Display Inversion ON
+        self._write_c(DISPON)  # Display ON
 
-        self.command(ST7789_VCOMS)
-        self.data(0x37)
+    def set_address_window(self, x0, y0, x1, y1):
+        self._write_c(RASET)
+        self._write_d([y0 >> 8, y0 & 0xFF, y1 >> 8, y1 & 0xFF])  # Row Start/End
+        print(f"RASET: {hex(y0 >> 8)} {hex(y0 & 0xFF)} {hex(y1 >> 8)} {hex(y1 & 0xFF)}")
+        self._write_c(CASET)
+        self._write_d([x0 >> 8, x0 & 0xFF, x1 >> 8, x1 & 0xFF])  # Column Start/End
+        print(f"CASET: {hex(x0 >> 8)} {hex(x0 & 0xFF)} {hex(x1 >> 8)} {hex(x1 & 0xFF)}")
 
-        self.command(ST7789_LCMCTRL)
-        self.data(0x2C)
+    def clear_screen(self, color=0x000):
+        self.set_address_window(0, 0, self.width - 1, self.height - 1)
+        self._write_c(RAMWR)
+        color_bytes = [color >> 8, color & 0xFF] * (self.width * self.height)
+        self._write_d(color_bytes)
+        print(f"Cleared screen with color {hex(color)}")
 
-        self.command(ST7789_VDVVRHEN)
-        self.data(0x01)
+    def close(self):
+        self.spi.close()
+        GPIO.cleanup()
 
-        self.command(ST7789_VRHS)
-        self.data(0x12)
+    def fill_rectangle(self, x0, y0, x1, y1, color):
+        """Fill a rectangular area with a single color."""
+        self.set_address_window(x0, y0, x1, y1)
+        self._write_c(RAMWR)
+        pixel_count = (x1 - x0) * (y1 - y0)  # Ensure correct count
+        color_bytes = [color >> 8, color & 0xFF] * pixel_count
+        self._write_d(color_bytes)
 
-        self.command(ST7789_VDVS)
-        self.data(0x20)
+        print(f"Drew center square at (x0:{x0}, x1:{x1}, y0:{y0}, y1:{y1}, pixel_count:{pixel_count}) with color {hex(color)}")
+        return pixel_count
 
-        if self._invert:
-            self.command(ST7789_INVON)
-        else:
-            self.command(ST7789_INVOFF)
+if __name__ == "__main__":
+    screen = GC9A01()
+    screen.init_display()
 
-        self.command(ST7789_SLPOUT)
-        self.command(ST7789_DISPON)
-        time.sleep(0.100)
+    for color in colors:
+        for i in range(0, 239, 20):
+            screen.fill_rectangle(x0=i, y0=i-500, x1=i+20, y1=i+2000, color=color)
+            time.sleep(.1)
+        screen.clear_screen()
 
-    def set_window(self, x0=0, y0=0, x1=None, y1=None):
-        """Set the pixel address window for drawing commands."""
-        if x1 is None:
-            x1 = self._width - 1
-        if y1 is None:
-            y1 = self._height - 1
-
-        self.command(ST7789_CASET)
-        self.data([x0 >> 8, x0 & 0xFF, x1 >> 8, x1 & 0xFF])
-        self.command(ST7789_RASET)
-        self.data([y0 >> 8, y0 & 0xFF, y1 >> 8, y1 & 0xFF])
-        self.command(ST7789_RAMWR)
-
-    def display(self, image):
-        """Display an image on the screen."""
-        self.set_window()
-        pixelbytes = self.image_to_data(image)
-        for i in range(0, len(pixelbytes), 4096):
-            self.data(pixelbytes[i : i + 4096])
-
-    def image_to_data(self, image):
-        """Convert an image to raw RGB565 bytes."""
-        if not isinstance(image, Image.Image):
-            image = Image.fromarray(image).convert("RGB")
-
-        pixels = list(image.getdata())
-        pixelbytes = bytearray()
-        for r, g, b in pixels:
-            rgb565 = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | ((b & 0xF8) >> 3)
-            pixelbytes.append((rgb565 >> 8) & 0xFF)
-            pixelbytes.append(rgb565 & 0xFF)
-
-        return bytes(pixelbytes)
-
-
-# Initialize ST7789 display
-disp = ST7789(
-    height=240,
-    width=320,
-    rotation=0,
-    port=0,
-    cs=0,
-    dc=25,
-    backlight=17,
-    spi_speed_hz=60 * 1000 * 1000,
-)
-
-# Initialize Camera
-picam2 = Picamera2()
-config = picam2.create_preview_configuration({"size": (320, 240)})
-picam2.configure(config)
-picam2.start()
-
-print("Starting camera feed to display...")
-
-while True:
-    frame = picam2.capture_array()
-    image = Image.fromarray(frame).convert("RGB")
-    disp.display(image)
-    time.sleep(0.05)
+    screen.close()
