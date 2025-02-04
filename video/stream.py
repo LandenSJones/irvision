@@ -179,5 +179,6 @@ print("Starting camera feed to display...")
 while True:
     frame = picam2.capture_array()
     image = Image.fromarray(frame).convert("RGB")
+    image.show()
     disp.display(image)
     time.sleep(0.05)
