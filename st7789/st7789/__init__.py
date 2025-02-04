@@ -23,7 +23,7 @@ import time
 
 import gpiod
 import gpiodevice
-import numpy
+from Pillow import Image
 import spidev
 from gpiod.line import Direction, Value
 
@@ -375,22 +375,30 @@ class ST7789(object):
             self.data(pixelbytes[i : i + 4096])
 
     def image_to_data(self, image, rotation=0):
-        if not isinstance(image, numpy.ndarray):
-            image = numpy.array(image.convert("RGB"))
+        """
+        Convert an image to RGB565 format and return the raw bytes.
+        """
+        # Ensure the image is in RGB format
+        if not isinstance(image, Image.Image):
+            image = Image.fromarray(image).convert("RGB")
 
-        # Rotate the image
-        pb = numpy.rot90(image, rotation // 90).astype("uint16")
+        # Rotate the image using PIL
+        if rotation != 0:
+            image = image.rotate(-rotation, expand=True)
 
-        # Mask and shift the 888 RGB into 565 RGB
-        red = (pb[..., [0]] & 0xF8) << 8
-        green = (pb[..., [1]] & 0xFC) << 3
-        blue = (pb[..., [2]] & 0xF8) >> 3
+        # Get the pixel data as a list of (R, G, B) tuples
+        pixels = list(image.getdata())
 
-        # Stick 'em together
-        result = red | green | blue
+        # Convert each pixel to RGB565 format
+        pixelbytes = bytearray()
+        for r, g, b in pixels:
+            # Convert RGB888 to RGB565
+            rgb565 = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | ((b & 0xF8) >> 3)
+            # Append the high and low bytes
+            pixelbytes.append((rgb565 >> 8) & 0xFF)  # High byte
+            pixelbytes.append(rgb565 & 0xFF)         # Low byte
 
-        # Output the raw bytes
-        return result.byteswap().tobytes()
+        return bytes(pixelbytes)
 
     @staticmethod
     def get_bl_pin(pin):
