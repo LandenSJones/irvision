@@ -1,33 +1,11 @@
-# Copyright (c) 2014 Adafruit Industries
-# Author: Tony DiCola
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
-import numbers
+from picamera2 import Picamera2
+from PIL import Image
+from gpiod.line import Direction, Value
 import time
-
+import numbers
 import gpiod
 import gpiodevice
-from Pillow import Image
 import spidev
-from gpiod.line import Direction, Value
-
-__version__ = "1.0.1"
 
 OUTL = gpiod.LineSettings(direction=Direction.OUTPUT, output_value=Value.INACTIVE)
 
@@ -411,3 +389,43 @@ class ST7789(object):
     @staticmethod
     def get_dc_pin(pin):
         return gpiodevice.get_pin(pin, "st7789-dc", OUTL)
+
+
+
+# Initialize ST7789 display
+disp = ST7789.ST7789(
+    height=240,
+    width=320,
+    rotation=0,
+    port=0,
+    cs=0,
+    dc=25,
+    backlight=17,
+    spi_speed_hz=60 * 1000 * 1000,
+    offset_left=0,
+    offset_top=0,
+)
+
+disp.begin()
+
+# Initialize camera
+picam2 = Picamera2()
+config = picam2.create_preview_configuration({"size": (320, 240)})  # Match display resolution
+picam2.configure(config)
+picam2.start()
+
+print("Starting camera feed to display...")
+
+while True:
+    # Capture frame from the camera
+    frame = picam2.capture_array()
+    image = Image.fromarray(frame)
+
+    # Convert image to RGB (ST7789 does not support RGBA)
+    image = image.convert("RGB")
+
+    # Display image on ST7789
+    disp.display(image)
+
+    # Optional: Limit frame rate
+    time.sleep(0.05)  # Adjust for desired refresh rate
