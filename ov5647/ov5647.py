@@ -18,4 +18,4 @@ image = image.convert("RGB")
 image.show()
 
 # Save as JPEG
-image.save("capture.jpg")
+#image.save("capture.jpg")
