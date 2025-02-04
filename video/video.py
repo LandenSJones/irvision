@@ -393,7 +393,7 @@ class ST7789(object):
 
 
 # Initialize ST7789 display
-disp = ST7789.ST7789(
+disp = ST7789(
     height=240,
     width=320,
     rotation=0,
