@@ -3,10 +3,11 @@ from PIL import Image
 import time
 import numbers
 import gpiod
+from gpiod import LineSettings, Direction, Value
 import gpiodevice
 import spidev
 
-OUTL = gpiod.LineSettings(direction=gpiod.Direction.OUTPUT, output_value=gpiod.Value.INACTIVE)
+OUTL = gpiod.LineSettings(direction=Direction.OUTPUT, output_value=Value.INACTIVE)
 
 BG_SPI_CS_BACK = 0
 BG_SPI_CS_FRONT = 1
