@@ -1,6 +1,6 @@
 from picamera2 import Picamera2
 from PIL import Image
-from gpiod import Direction, Value
+from gpiod import LineSettings, Direction, Value
 import time
 import numbers
 import gpiod
