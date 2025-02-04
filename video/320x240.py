@@ -13,7 +13,6 @@ WIDTH = 320
 HEIGHT = 240
 
 buffer = Image.new("RGB", (WIDTH, HEIGHT))
-buffer.show()
 draw = ImageDraw.Draw(buffer)
 
 draw.rectangle((0, 0, 50, 50), (255, 0, 0))
@@ -32,4 +31,5 @@ display = ST7789(
     spi_speed_hz=60 * 1000 * 1000,
 )
 
+buffer.show()
 display.display(buffer)
