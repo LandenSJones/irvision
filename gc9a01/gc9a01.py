@@ -4,13 +4,13 @@ import time
 
 # PINS
 '''
-RST 16
-CS  24
-DC  22
-SDA 19
-SCL 23
-GND 6
 VCC 1
+GND 6
+RST 16
+SDA 19
+DC  22
+SCL 23
+CS  24
 '''
 
 # Colors
@@ -114,7 +114,7 @@ class GC9A01:
         self._write_c(SLPOUT)  # Sleep Out
         time.sleep(0.1)
         self._write_c(MADCTL)  # Memory Data Access Control
-        self._write_d(0x80)       # Set rotation
+        self._write_d(0x00)       # Set rotation
         self._write_c(COLMOD)  # Pixel Format
         self._write_d(0x05)       # 16-bit color (RGB565)
         self._write_c(INVON)  # Display Inversion ON
@@ -122,10 +122,16 @@ class GC9A01:
 
     def set_address_window(self, x0, y0, x1, y1):
         self._write_c(RASET)
-        self._write_d([y0 >> 8, y0 & 0xFF, y1 >> 8, y1 & 0xFF])  # Row Start/End
+        self._write_d([y0 >> 8])
+        self._write_d([y0 & 0xFF])
+        self._write_d([y1 >> 8])
+        self._write_d([y1 & 0xFF])  # Row Start/End
         print(f"RASET: {hex(y0 >> 8)} {hex(y0 & 0xFF)} {hex(y1 >> 8)} {hex(y1 & 0xFF)}")
         self._write_c(CASET)
-        self._write_d([x0 >> 8, x0 & 0xFF, x1 >> 8, x1 & 0xFF])  # Column Start/End
+        self._write_d([x0 >> 8])
+        self._write_d([x0 & 0xFF])
+        self._write_d([x1 >> 8])
+        self._write_d([x1 & 0xFF])  # Column Start/End
         print(f"CASET: {hex(x0 >> 8)} {hex(x0 & 0xFF)} {hex(x1 >> 8)} {hex(x1 & 0xFF)}")
 
     def clear_screen(self, color=0x000):
