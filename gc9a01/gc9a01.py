@@ -1,6 +1,5 @@
 import spidev
-import gpiod
-import RPi.GPIO as GPIO
+import lgpio
 import time
 
 # PINS
@@ -48,8 +47,12 @@ SPI_PORT = 0    # SPI BUS 0 : SPI0
 SPI_DEVICE = 0
 
 DC_PIN = 25     # GPIO 25 (Pin 22) is assigned to the DCX (Data/Command) pin of the display.
-
 RST_PIN = 23    # Reset | GPIO 23 (Pin 16) is used to reset the display.
+
+chip_worker = lgpio.gpiochip_open(0)  # Opens gpiochip0
+pins = [RST_PIN, DC_PIN]
+for pin in pins:
+    lgpio.gpio_claim_output(chip_worker, pin)
 
 def color565(red, green=0, blue=0):
     """
@@ -70,43 +73,36 @@ class GC9A01:
         self.width = width
         self.height = height
 
-        self._gpio_init()
         self._spi_init()
-
-    def _gpio_init(self):
-        """Initialize GPIO for the display."""
-        GPIO.setwarnings(False)
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.dc_pin, GPIO.OUT)
-        GPIO.setup(self.rst_pin, GPIO.OUT)
 
     def _spi_init(self):
         """Initialize SPI interface."""
         try:
             self.spi = spidev.SpiDev()
             self.spi.open(self.spi_port, self.spi_device)
-            self.spi.max_speed_hz = 10_000_000  # 40 MHz
+            self.spi.max_speed_hz = 1000000  # 40 MHz
             self.spi.mode = 0
         except Exception as e:
             print(f"SPI initialization failed: {e}")
             self.close()
 
     def _write_c(self, cmd):
-        GPIO.output(self.dc_pin, GPIO.LOW)  # Command mode
+        lgpio.gpio_write(chip_worker, DC_PIN, 0)
         self.spi.writebytes([cmd])
 
     def _write_d(self, data):
-        GPIO.output(self.dc_pin, GPIO.HIGH)  # Data mode
+        lgpio.gpio_write(chip_worker, DC_PIN, 1)
+        time.sleep(0.1)
         if isinstance(data, int):
             data = [data]  # Convert to single-element list
         chunk_size = 100  # Maximum SPI transfer size
         for i in range(0, len(data), chunk_size):
-            self.spi.writebytes(data[i:i+chunk_size])
+            self.spi.xfer2(data[i:i+chunk_size])
 
     def reset_display(self):
-        GPIO.output(self.rst_pin, GPIO.LOW)  # Holds the display in reset mode (inactive state).
+        lgpio.gpio_write(chip_worker, RST_PIN, 0)
         time.sleep(0.1)
-        GPIO.output(self.rst_pin, GPIO.HIGH) # Releases reset, allowing the display to initialize.
+        lgpio.gpio_write(chip_worker, RST_PIN, 1)
         time.sleep(0.1)
 
     def init_display(self):
@@ -115,7 +111,7 @@ class GC9A01:
         self._write_c(SLPOUT)  # Sleep Out
         time.sleep(0.1)
         self._write_c(MADCTL)  # Memory Data Access Control
-        self._write_d(0x80)       # Set rotation
+        self._write_d(0x00)       # Set rotation
         self._write_c(COLMOD)  # Pixel Format
         self._write_d(0x05)       # 16-bit color (RGB565)
         self._write_c(INVON)  # Display Inversion ON
@@ -127,6 +123,7 @@ class GC9A01:
         self._write_d([x0 & 0xFF])
         self._write_d([x1 >> 8])
         self._write_d([x1 & 0xFF])  # Column Start/End
+        self._write_c(0x00)  # Dummy read (some displays need this)
         print(f"CASET: {hex(x0 >> 8)} {hex(x0 & 0xFF)} {hex(x1 >> 8)} {hex(x1 & 0xFF)}")
         self._write_c(RASET)
         self._write_d([y0 >> 8])
@@ -142,9 +139,9 @@ class GC9A01:
         self._write_d(color_bytes)
         print(f"Cleared screen with color {hex(color)}")
 
-    def close(self):
+    def __del__(self):
         self.spi.close()
-        GPIO.cleanup()
+        lgpio.gpiochip_close(chip_worker)
 
     def fill_rectangle(self, x0, y0, x1, y1, color):
         """Fill a rectangular area with a single color."""
@@ -161,10 +158,8 @@ if __name__ == "__main__":
     screen = GC9A01()
     screen.init_display()
 
-    for color in colors:
-        for i in range(0, 239, 20):
-            screen.fill_rectangle(x0=i, y0=i-500, x1=i+20, y1=i+2000, color=color)
-            time.sleep(.1)
-        screen.clear_screen()
-
-    screen.close()
+    #for color in colors:
+    for i in range(0, 239, 20):
+        screen.fill_rectangle(x0=i, y0=120, x1=i+20, y1=160, color=colors[0])
+        time.sleep(0.1)
+    screen.clear_screen()
