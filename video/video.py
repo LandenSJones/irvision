@@ -1,93 +1,79 @@
-# Copyright (c) 2014 Adafruit Industries
-# Author: Tony DiCola
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
+# VCC   (Pin 1)   ⚠️  (Try 5V if needed)
+# GND   (Pin 6)
+# DIN   (Pin 19, BCM 10)
+# CLK   (Pin 23, BCM 11) AKA SCK
+# CS    (Pin 24, BCM 8)
+# DC    (Pin 22, GPIO 25)
+# RST   (Pin 18, GPIO 24)
+# BL    (Pin 12, GPIO 18)    (Optional)
+
 import numbers
 import time
-
+from PIL import Image, ImageDraw
 import gpiod
 import gpiodevice
 import numpy
 import spidev
 from gpiod.line import Direction, Value
-
-__version__ = "1.0.1"
+from enum import Enum
 
 OUTL = gpiod.LineSettings(direction=Direction.OUTPUT, output_value=Value.INACTIVE)
 
-BG_SPI_CS_BACK = 0
-BG_SPI_CS_FRONT = 1
-
 SPI_CLOCK_HZ = 16000000
 
-ST7789_NOP = 0x00
-ST7789_SWRESET = 0x01
-ST7789_RDDID = 0x04
-ST7789_RDDST = 0x09
+class ST7789Constants(Enum):
+    ST7789_NOP = 0x00
+    ST7789_SWRESET = 0x01
+    ST7789_RDDID = 0x04
+    ST7789_RDDST = 0x09
 
-ST7789_SLPIN = 0x10
-ST7789_SLPOUT = 0x11
-ST7789_PTLON = 0x12
-ST7789_NORON = 0x13
+    ST7789_SLPIN = 0x10
+    ST7789_SLPOUT = 0x11
+    ST7789_PTLON = 0x12
+    ST7789_NORON = 0x13
 
-ST7789_INVOFF = 0x20
-ST7789_INVON = 0x21
-ST7789_DISPOFF = 0x28
-ST7789_DISPON = 0x29
+    ST7789_INVOFF = 0x20
+    ST7789_INVON = 0x21
+    ST7789_DISPOFF = 0x28
+    ST7789_DISPON = 0x29
 
-ST7789_CASET = 0x2A
-ST7789_RASET = 0x2B
-ST7789_RAMWR = 0x2C
-ST7789_RAMRD = 0x2E
+    ST7789_CASET = 0x2A
+    ST7789_RASET = 0x2B
+    ST7789_RAMWR = 0x2C
+    ST7789_RAMRD = 0x2E
 
-ST7789_PTLAR = 0x30
-ST7789_MADCTL = 0x36
-ST7789_COLMOD = 0x3A
+    ST7789_PTLAR = 0x30
+    ST7789_MADCTL = 0x36
+    ST7789_COLMOD = 0x3A
 
-ST7789_FRMCTR1 = 0xB1
-ST7789_FRMCTR2 = 0xB2
-ST7789_FRMCTR3 = 0xB3
-ST7789_INVCTR = 0xB4
-ST7789_DISSET5 = 0xB6
+    ST7789_FRMCTR1 = 0xB1
+    ST7789_FRMCTR2 = 0xB2
+    ST7789_FRMCTR3 = 0xB3
+    ST7789_INVCTR = 0xB4
+    ST7789_DISSET5 = 0xB6
 
-ST7789_GCTRL = 0xB7
-ST7789_GTADJ = 0xB8
-ST7789_VCOMS = 0xBB
+    ST7789_GCTRL = 0xB7
+    ST7789_GTADJ = 0xB8
+    ST7789_VCOMS = 0xBB
 
-ST7789_LCMCTRL = 0xC0
-ST7789_IDSET = 0xC1
-ST7789_VDVVRHEN = 0xC2
-ST7789_VRHS = 0xC3
-ST7789_VDVS = 0xC4
-ST7789_VMCTR1 = 0xC5
-ST7789_FRCTRL2 = 0xC6
-ST7789_CABCCTRL = 0xC7
+    ST7789_LCMCTRL = 0xC0
+    ST7789_IDSET = 0xC1
+    ST7789_VDVVRHEN = 0xC2
+    ST7789_VRHS = 0xC3
+    ST7789_VDVS = 0xC4
+    ST7789_VMCTR1 = 0xC5
+    ST7789_FRCTRL2 = 0xC6
+    ST7789_CABCCTRL = 0xC7
 
-ST7789_RDID1 = 0xDA
-ST7789_RDID2 = 0xDB
-ST7789_RDID3 = 0xDC
-ST7789_RDID4 = 0xDD
+    ST7789_RDID1 = 0xDA
+    ST7789_RDID2 = 0xDB
+    ST7789_RDID3 = 0xDC
+    ST7789_RDID4 = 0xDD
 
-ST7789_GMCTRP1 = 0xE0
-ST7789_GMCTRN1 = 0xE1
+    ST7789_GMCTRP1 = 0xE0
+    ST7789_GMCTRN1 = 0xE1
 
-ST7789_PWCTR6 = 0xFC
+    ST7789_PWCTR6 = 0xFC
 
 
 class ST7789(object):
@@ -104,7 +90,7 @@ class ST7789(object):
         height=240,
         rotation=90,
         invert=True,
-        spi_speed_hz=4000000,
+        spi_speed_hz=1000000,
         offset_left=0,
         offset_top=0,
     ):
@@ -150,26 +136,19 @@ class ST7789(object):
         self._offset_left = offset_left
         self._offset_top = offset_top
 
-        # Set up DC pin if a lines/offset tuple is not supplied
-        if isinstance(dc, int):
-            self._dc = ST7789.get_dc_pin(dc)
+        # Set DC as output.
+        self._dc = gpiodevice.get_pin(dc, "st7789-dc", OUTL)
 
         # Setup backlight as output (if provided).
         if backlight is not None:
-            if isinstance(backlight, int):
-                self._bl = ST7789.get_bl_pin(backlight)
-            else:
-                self._bl = backlight
+            self._bl = gpiodevice.get_pin(backlight, "st7789-bl", OUTL)
             self.set_pin(self._bl, False)
             time.sleep(0.1)
             self.set_pin(self._bl, True)
 
-        # Set up and call reset (if provided)
+        # Setup reset as output (if provided).
         if rst is not None:
-            # Set up RESET pin if a lines/offset tuple is not supplied
-            if isinstance(rst, int):
-                self._rst = ST7789.get_rst_pin(rst)
-            self.reset()
+            self._rst = gpiodevice.get_pin(rst, "st7789-rst", OUTL)
 
         self._init()
 
@@ -235,48 +214,48 @@ class ST7789(object):
     def _init(self):
         # Initialize the display.
 
-        self.command(ST7789_SWRESET)  # Software reset
+        self.command(ST7789Constants.ST7789_SWRESET.value)  # Software reset
         time.sleep(0.150)  # delay 150 ms
 
-        self.command(ST7789_MADCTL)
+        self.command(ST7789Constants.ST7789_MADCTL.value)
         self.data(0x70)
 
-        self.command(ST7789_FRMCTR2)  # Frame rate ctrl - idle mode
+        self.command(ST7789Constants.ST7789_FRMCTR2.value)  # Frame rate ctrl - idle mode
         self.data(0x0C)
         self.data(0x0C)
         self.data(0x00)
         self.data(0x33)
         self.data(0x33)
 
-        self.command(ST7789_COLMOD)
+        self.command(ST7789Constants.ST7789_COLMOD.value)
         self.data(0x05)
 
-        self.command(ST7789_GCTRL)
+        self.command(ST7789Constants.ST7789_GCTRL.value)
         self.data(0x14)
 
-        self.command(ST7789_VCOMS)
+        self.command(ST7789Constants.ST7789_VCOMS.value)
         self.data(0x37)
 
-        self.command(ST7789_LCMCTRL)  # Power control
+        self.command(ST7789Constants.ST7789_LCMCTRL.value)  # Power control
         self.data(0x2C)
 
-        self.command(ST7789_VDVVRHEN)  # Power control
+        self.command(ST7789Constants.ST7789_VDVVRHEN.value)  # Power control
         self.data(0x01)
 
-        self.command(ST7789_VRHS)  # Power control
+        self.command(ST7789Constants.ST7789_VRHS.value)  # Power control
         self.data(0x12)
 
-        self.command(ST7789_VDVS)  # Power control
+        self.command(ST7789Constants.ST7789_VDVS.value)  # Power control
         self.data(0x20)
 
         self.command(0xD0)
         self.data(0xA4)
         self.data(0xA1)
 
-        self.command(ST7789_FRCTRL2)
+        self.command(ST7789Constants.ST7789_FRCTRL2.value)
         self.data(0x0F)
 
-        self.command(ST7789_GMCTRP1)  # Set Gamma
+        self.command(ST7789Constants.ST7789_GMCTRP1.value)  # Set Gamma
         self.data(0xD0)
         self.data(0x04)
         self.data(0x0D)
@@ -292,7 +271,7 @@ class ST7789(object):
         self.data(0x1F)
         self.data(0x23)
 
-        self.command(ST7789_GMCTRN1)  # Set Gamma
+        self.command(ST7789Constants.ST7789_GMCTRN1.value)  # Set Gamma
         self.data(0xD0)
         self.data(0x04)
         self.data(0x0C)
@@ -309,22 +288,14 @@ class ST7789(object):
         self.data(0x23)
 
         if self._invert:
-            self.command(ST7789_INVON)  # Invert display
+            self.command(ST7789Constants.ST7789_INVON.value)  # Invert display
         else:
-            self.command(ST7789_INVOFF)  # Don't invert display
+            self.command(ST7789Constants.ST7789_INVOFF.value)  # Don't invert display
 
-        self.command(ST7789_SLPOUT)
+        self.command(ST7789Constants.ST7789_SLPOUT.value)
 
-        self.command(ST7789_DISPON)  # Display on
+        self.command(ST7789Constants.ST7789_DISPON.value)  # Display on
         time.sleep(0.100)  # 100 ms
-
-    def begin(self):
-        """Set up the display
-
-        Deprecated. Included in __init__.
-
-        """
-        pass
 
     def set_window(self, x0=0, y0=0, x1=None, y1=None):
         """Set the pixel address window for proceeding drawing commands. x0 and
@@ -345,17 +316,17 @@ class ST7789(object):
         x0 += self._offset_left
         x1 += self._offset_left
 
-        self.command(ST7789_CASET)  # Column addr set
+        self.command(ST7789Constants.ST7789_CASET.value)  # Column addr set
         self.data(x0 >> 8)
         self.data(x0 & 0xFF)  # XSTART
         self.data(x1 >> 8)
         self.data(x1 & 0xFF)  # XEND
-        self.command(ST7789_RASET)  # Row addr set
+        self.command(ST7789Constants.ST7789_RASET.value)  # Row addr set
         self.data(y0 >> 8)
         self.data(y0 & 0xFF)  # YSTART
         self.data(y1 >> 8)
         self.data(y1 & 0xFF)  # YEND
-        self.command(ST7789_RAMWR)  # write to RAM
+        self.command(ST7789Constants.ST7789_RAMWR.value)  # write to RAM
 
     def display(self, image):
         """Write the provided image to the hardware.
@@ -392,14 +363,16 @@ class ST7789(object):
         # Output the raw bytes
         return result.byteswap().tobytes()
 
-    @staticmethod
-    def get_bl_pin(pin):
-        return gpiodevice.get_pin(pin, "st7789-bl", OUTL)
+def main():
+    print("hi")
+    display = ST7789(0, 0, 25, 18, 24, 320, 240, 0)
 
-    @staticmethod
-    def get_rst_pin(pin):
-        return gpiodevice.get_pin(pin, "st7789-rst", OUTL)
+    buffer = Image.new("RGB", (320, 240))
+    draw = ImageDraw.Draw(buffer)
 
-    @staticmethod
-    def get_dc_pin(pin):
-        return gpiodevice.get_pin(pin, "st7789-dc", OUTL)
+    draw.rectangle((120, 120, 150, 150), (255, 0, 0))
+    display.display(buffer)
+    buffer.show(draw)
+
+if __name__ == "__main__":
+    main()
