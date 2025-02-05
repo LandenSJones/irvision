@@ -9,17 +9,11 @@
 
 import numbers
 import time
+import numpy
 from PIL import Image, ImageDraw
 import gpiod
-import gpiodevice
-import numpy
 import spidev
-from gpiod.line import Direction, Value
 from enum import Enum
-
-OUTL = gpiod.LineSettings(direction=Direction.OUTPUT, output_value=Value.INACTIVE)
-
-SPI_CLOCK_HZ = 16000000
 
 class ST7789Constants(Enum):
     ST7789_NOP = 0x00
@@ -119,11 +113,8 @@ class ST7789(object):
                 f"Invalid rotation {rotation} for {width}x{height} resolution"
             )
 
-        gpiodevice.friendly_errors = True
-
         self._spi = spidev.SpiDev(port, cs)
         self._spi.mode = 0
-        self._spi.lsbfirst = False
         self._spi.max_speed_hz = spi_speed_hz
 
         self._dc = dc
@@ -136,25 +127,26 @@ class ST7789(object):
         self._offset_left = offset_left
         self._offset_top = offset_top
 
-        # Set DC as output.
-        self._dc = gpiodevice.get_pin(dc, "st7789-dc", OUTL)
-
-        # Setup backlight as output (if provided).
+        self._dc = self.setup_gpio(dc, "st7789-dc")
         if backlight is not None:
-            self._bl = gpiodevice.get_pin(backlight, "st7789-bl", OUTL)
+            self._bl = self.setup_gpio(backlight, "st7789-bl")
             self.set_pin(self._bl, False)
             time.sleep(0.1)
             self.set_pin(self._bl, True)
-
-        # Setup reset as output (if provided).
         if rst is not None:
-            self._rst = gpiodevice.get_pin(rst, "st7789-rst", OUTL)
+            self._rst = self.setup_gpio(rst, "st7789-rst")
 
         self._init()
 
+    def setup_gpio(self, pin, label):
+        """Setup a GPIO pin using libgpiod."""
+        chip = gpiod.Chip("gpiochip1")
+        line = chip.get_line(pin)
+        line.request(consumer=label, type=gpiod.LINE_REQ_DIR_OUT, default_vals=[0])
+        return line
+
     def set_pin(self, pin, state):
-        lines, offset = pin
-        lines.set_value(offset, Value.ACTIVE if state else Value.INACTIVE)
+        pin.set_value(1 if state else 0)  # Directly set pin value
 
     def send(self, data, is_data=True, chunk_size=4096):
         """Write a byte or array of bytes to the display. Is_data parameter
@@ -362,6 +354,12 @@ class ST7789(object):
 
         # Output the raw bytes
         return result.byteswap().tobytes()
+
+    def __del__(self):
+        """Manually close the SPI connection."""
+        self._spi.close()
+        print("SPIDEV closed")
+
 
 def main():
     print("hi")
