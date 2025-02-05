@@ -1,4 +1,5 @@
 import spidev
+import gpiod
 import RPi.GPIO as GPIO
 import time
 
