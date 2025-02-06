@@ -1,7 +1,8 @@
-# PINS GC9A01A
 import time
 import spidev
 import lgpio
+
+# PINS GC9A01A
 '''
 VCC 1
 GND 6
@@ -14,33 +15,62 @@ CS  24  | GPIO 8
 
 RST_PIN = 23
 DC_PIN = 25
-CS_PIN = 8
+# SPI BUS 0 : SPI0
+SPI_PORT = 0
+# The SPI_DEVICE = 0 setting tells the Raspberry Pi which chip select (CE) pin to use.
+# 0 corresponds to CE0 (GPIO 8, Pin 24).
+SPI_DEVICE = 0
 pins = [RST_PIN, DC_PIN]
 
+# Colors
+BLUE    =   0x001F
+RED     =   0xF800
+GREEN   =   0x07E0
+CYAN    =   0x07FF
+MAGENTA =   0xF81F
+YELLOW  =   0xFFE0
+WHITE   =   0xFFFF
+colors = [BLUE, RED, GREEN, CYAN, MAGENTA, YELLOW, WHITE]
+
+# Write Commands
+SWRESET =   0x01    #	Software Reset
+SLPOUT  =   0x11    #	Sleep Out (Wake up the display)
+INVON   =   0x21    #	Invert Display Colors
+DISPOFF =   0x28    #	Display OFF
+DISPON  =   0x29    #	Display ON
 CASET   =   0x2A    #	Set Column Address
 RASET   =   0x2B    #	Set Row Address
 RAMWR   =   0x2C    #	Write Data to GRAM (Graphical RAM)
+MADCTL  =   0x36    #	Memory Access Control (sets rotation)
+COLMOD  =   0x3A    #	Pixel Format Set (color depth)
+
+# Read Commands
+RDID    =   0x04    #   Reads the LCD driver ID             |   3 bytes
+RDDS    =   0x09    #   Checks if the display is ON/OFF     |	4 bytes
+GTSL    =   0x45    #   Reads the current scanline position |   2 bytes
 
 class GC9A01():
     def __init__(
             self,
             dc=DC_PIN,
-            cs=None,
             reset=RST_PIN,
-            spi=None):
+            spiD=SPI_DEVICE,
+            spiP=SPI_PORT):
 
         self.width = 240
         self.height = 240
-        self.reset = reset
         self.dc = dc
-        self.cs = cs
+        self.reset = reset
+        self.spiD = spiD
+        self.spiP = spiP
+
 
         self.chip_worker = lgpio.gpiochip_open(0)  # Opens gpiochip0
         for pin in pins:
             lgpio.gpio_claim_output(self.chip_worker, pin)
 
         self.spi = spidev.SpiDev()
-        self.spi.open(0, 0)
+        self.spi.open(self.spiP, self.spiD)
         self.spi.max_speed_hz = 40 * 1000 * 1000  # 40 MHz
         self.spi.mode = 0
 
@@ -109,7 +139,6 @@ class GC9A01():
         self._write(0x21)   # Display Inversion
         self._write(0x11)   # Sleep out
         time.sleep(0.120)
-
         self._write(0x29)   # Display On
         time.sleep(0.20)
 
@@ -144,7 +173,7 @@ class GC9A01():
         self._write(RASET, [y0 >> 8, y0 & 0xFF, y1 >> 8, y1 & 0xFF])
         print(f"RASET: {hex(y0 >> 8)} {hex(y0 & 0xFF)} {hex(y1 >> 8)} {hex(y1 & 0xFF)}")
 
-    def fill_rectangle(self, x0, y0, x1, y1, color):
+    def fill_rectangle_solid(self, x0, y0, x1, y1, color):
         """Fill a rectangular area with a single color."""
         self.set_address_window(x0, y0, x1, y1)
         pixel_count = (x1 - x0) * (y1 - y0)  # Ensure correct count
@@ -153,6 +182,19 @@ class GC9A01():
 
         print(f"Drew center square at (x0:{x0}, x1:{x1}, y0:{y0}, y1:{y1}, pixel_count:{pixel_count}) with color {hex(color)}")
         return pixel_count
+
+    def fill_rectangle_multicolor(self, x0, y0, x1, y1, color):
+        """Fill a rectangular area with a gradually changing color."""
+        self.set_address_window(x0, y0, x1, y1)
+        pixel_count = (x1 - x0) * (y1 - y0)  # Ensure correct count
+        color_bytes = []
+
+        for i in range(pixel_count):
+            new_color = (color + i) & 0xFFFF  # Ensure color wraps within 16-bit
+            color_bytes.extend([new_color >> 8, new_color & 0xFF])
+
+        self._write(RAMWR, color_bytes)
+
 
     def clear_screen(self, color=0x000):
         self.set_address_window(0, 0, self.width - 1, self.height - 1)
@@ -168,7 +210,7 @@ def format_byte_string(data_list):
     """Convert a list of integers into a formatted byte string."""
     return bytes(data_list)
 
-display = GC9A01(dc=25, reset=23, cs=8)
+display = GC9A01(dc=25, reset=23)
 display.clear_screen()
-display.fill_rectangle(100, 100, 230, 230, 0xFFE0)
-display.fill_rectangle(100, 100, 120, 120, 0xF81F)
+display.fill_rectangle_solid(120, 120, 240, 240, 0xFFE0)
+display.fill_rectangle_multicolor(0, 0, 121, 120, 0xF81F)
