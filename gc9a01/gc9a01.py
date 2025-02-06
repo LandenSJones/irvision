@@ -154,12 +154,17 @@ class GC9A01:
         print(f"Drew center square at (x0:{x0}, x1:{x1}, y0:{y0}, y1:{y1}, pixel_count:{pixel_count}) with color {hex(color)}")
         return pixel_count
 
+def format_byte_string(data_list):
+    """Convert a list of integers into a formatted byte string."""
+    return bytes(data_list)
+
 if __name__ == "__main__":
+
     screen = GC9A01()
     screen.init_display()
 
-    #for color in colors:
-    for i in range(0, 239, 20):
-        screen.fill_rectangle(x0=i, y0=120, x1=i+20, y1=160, color=colors[0])
-        time.sleep(0.1)
-    screen.clear_screen()
+    for color in colors:
+        for i in range(0, 239, 20):
+            screen.fill_rectangle(x0=i, y0=120, x1=i+20, y1=160, color=colors[0])
+            screen.clear_screen()
+            time.sleep(0.1)
