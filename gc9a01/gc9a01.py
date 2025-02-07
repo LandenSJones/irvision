@@ -1,8 +1,8 @@
-import time
 import spidev
 import lgpio
 from PIL import Image
 import numpy
+import time
 
 # PINS GC9A01A
 '''
@@ -17,12 +17,19 @@ CS  24  | GPIO 8
 
 RST_PIN = 23
 DC_PIN = 25
-# SPI BUS 0 : SPI0
 SPI_PORT = 0
-# The SPI_DEVICE = 0 setting tells the Raspberry Pi which chip select (CE) pin to use.
-# 0 corresponds to CE0 (GPIO 8, Pin 24).
 SPI_DEVICE = 0
 pins = [RST_PIN, DC_PIN]
+
+ROTATIONS = [
+    0x48,   # 0 - PORTRAIT
+    0x28,   # 1 - LANDSCAPE
+    0x88,   # 2 - INVERTED_PORTRAIT
+    0xe8,   # 3 - INVERTED_LANDSCAPE
+    0x08,   # 4 - PORTRAIT_MIRRORED
+    0x68,   # 5 - LANDSCAPE_MIRRORED
+    0xc8,   # 6 - INVERTED_PORTRAIT_MIRRORED
+    0xa8]   # 7 - INVERTED_LANDSCAPE_MIRRORED]
 
 # Colors
 BLUE    =   0x001F
@@ -57,7 +64,8 @@ class GC9A01():
             dc=DC_PIN,
             reset=RST_PIN,
             spiD=SPI_DEVICE,
-            spiP=SPI_PORT):
+            spiP=SPI_PORT,
+            rotation=0):
 
         self.width = 240
         self.height = 240
@@ -65,6 +73,7 @@ class GC9A01():
         self.reset = reset
         self.spiD = spiD
         self.spiP = spiP
+        self.rotation = rotation
 
 
         self.chip_worker = lgpio.gpiochip_open(0)  # Opens gpiochip0
@@ -143,6 +152,7 @@ class GC9A01():
         time.sleep(0.120)
         self._write(DISPON)   # Display On
         time.sleep(0.20)
+        self._write(MADCTL, bytes([ROTATIONS[self.rotation]]))
 
     def hard_reset(self):
         self.update_pin_value(RST_PIN, 1)
@@ -236,6 +246,10 @@ def format_byte_string(data_list):
     return bytes(data_list)
 
 image = Image.open("cat.jpg")
-data = image_to_data(image)
-display = GC9A01(dc=25, reset=23)
+data = image_to_data(image, rotation=90)
+display = GC9A01(dc=25, reset=23, rotation=2)
+display.display_image(image)
+time.sleep(0.1)
+display.clear_screen()
+data = image_to_data(image, rotation=0)
 display.display_image(image)

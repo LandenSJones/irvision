@@ -4,7 +4,6 @@ from PIL import Image
 def image_to_data(image, rotation=0):
     if not isinstance(image, numpy.ndarray):
             # Resize image to 240x240
-        image = image.resize((240, 240), Image.Resampling.LANCZOS)
         image = numpy.array(image.convert("RGB"))
 
     # Rotate the image
