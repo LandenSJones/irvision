@@ -1,6 +1,8 @@
 import time
 import spidev
 import lgpio
+from PIL import Image
+import numpy
 
 # PINS GC9A01A
 '''
@@ -195,6 +197,10 @@ class GC9A01():
 
         self._write(RAMWR, color_bytes)
 
+    def display_image(self, image):
+        color_bytes = image_to_data(image)
+        self.set_address_window(0, 0, self.width - 1, self.height - 1)
+        self._write(RAMWR, color_bytes)
 
     def clear_screen(self, color=0x000):
         self.set_address_window(0, 0, self.width - 1, self.height - 1)
@@ -206,13 +212,30 @@ class GC9A01():
         self.spi.close()
         lgpio.gpiochip_close(self.chip_worker)
 
+def image_to_data(image, rotation=0):
+    image = image.resize((240, 240), Image.Resampling.LANCZOS)
+    if not isinstance(image, numpy.ndarray):
+        image = numpy.array(image.convert("RGB"))
+
+    # Rotate the image
+    pb = numpy.rot90(image, rotation // 90).astype("uint16")
+
+    # Mask and shift the 888 RGB into 565 RGB
+    red = (pb[..., [0]] & 0xF8) << 8
+    green = (pb[..., [1]] & 0xFC) << 3
+    blue = (pb[..., [2]] & 0xF8) >> 3
+
+    # Stick 'em together
+    result = red | green | blue
+
+    # Output the raw bytes
+    return result.byteswap().tobytes()
+
 def format_byte_string(data_list):
     """Convert a list of integers into a formatted byte string."""
     return bytes(data_list)
 
+image = Image.open("cat.jpg")
+data = image_to_data(image)
 display = GC9A01(dc=25, reset=23)
-display.clear_screen()
-display.fill_rectangle_solid(120, 120, 240, 240, 0xFFE0)
-display.fill_rectangle_multicolor(0, 0, 121, 120, 0xF81F)
-display.fill_rectangle_solid(120, 0, 240, 120, 0xF81F)
-display.fill_rectangle_multicolor(0, 120, 120, 240, 0xFFE0)
+display.display_image(image)
